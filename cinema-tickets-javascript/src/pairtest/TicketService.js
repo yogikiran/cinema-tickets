@@ -1,6 +1,6 @@
 import TicketTypeRequest from './lib/TicketTypeRequest.js';
 import InvalidPurchaseException from './lib/InvalidPurchaseException.js';
-import { adultType } from "./constants.js";
+import { ADULT_TYPE, MAX_TICKET_COUNT } from "./constants.js";
 
 export default class TicketService {
   /**
@@ -17,14 +17,14 @@ export default class TicketService {
   }
 
   /**
- * Checks if the ticket purchase request includes at least one adult ticket.
- * @param {...TicketTypeRequest} ticketTypeRequests - The ticket type requests to be checked.
- * @throws {InvalidPurchaseException} - Thrown if there is no adult ticket in the request.
- */
+   * Checks if the ticket purchase request includes at least one adult ticket.
+   * @param {...TicketTypeRequest} ticketTypeRequests - The ticket type requests to be checked.
+   * @throws {InvalidPurchaseException} - Thrown if there is no adult ticket in the request.
+   */
   #includesAdult(...ticketTypeRequests) {
     let adultFound = false;
     for (const ttr of ticketTypeRequests) {
-      if (ttr.getTicketType() == adultType) {
+      if (ttr.getTicketType() == ADULT_TYPE) {
         adultFound = true;
         break;
       }
@@ -36,9 +36,34 @@ export default class TicketService {
     }
   }
 
+  /**
+   * Validates the ticket count for a ticket purchase request.
+   * @private
+   * @param {...TicketTypeRequest} ticketTypeRequests - The ticket type requests to validate.
+   * @throws {InvalidPurchaseException} If the ticket count is less than zero or exceeds the maximum limit.
+   */
+  #isValidTicketCount(...ticketTypeRequests) {
+    let totalTickets = 0;
+
+    for (const request of ticketTypeRequests) {
+      totalTickets += request.getNoOfTickets();
+      if (request.getNoOfTickets() < 0) {
+        throw new InvalidPurchaseException(
+          'The ticket count must be zero or a positive number.'
+        );
+      }
+      if (totalTickets > MAX_TICKET_COUNT) {
+        throw new InvalidPurchaseException(
+          'The maximum number of tickets that can be purchased per request is limited to 20.'
+        );
+      }
+    }
+  }
+
   purchaseTickets(accountId, ...ticketTypeRequests) {
     this.#isValidAccountId(accountId);
     this.#includesAdult(...ticketTypeRequests);
+    this.#isValidTicketCount(...ticketTypeRequests);
     // throws InvalidPurchaseException
   }
 }

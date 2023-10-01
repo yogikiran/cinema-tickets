@@ -1,3 +1,4 @@
-export const adultType = "ADULT";
-export const childType = "CHILD";
-export const infantType = "INFANT";
+export const ADULT_TYPE = "ADULT";
+export const CHILD_TYPE = "CHILD";
+export const INFANT_TYPE = "INFANT";
+export const MAX_TICKET_COUNT = 20;

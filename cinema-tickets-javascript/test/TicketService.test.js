@@ -1,18 +1,20 @@
 import TicketService from "../src/pairtest/TicketService.js";
 import TicketTypeRequest from "../src/pairtest/lib/TicketTypeRequest.js";
 import InvalidPurchaseException from "../src/pairtest/lib/InvalidPurchaseException.js";
-import { adultType, childType, infantType } from "../src/pairtest/constants.js";
+import { ADULT_TYPE, CHILD_TYPE, INFANT_TYPE } from "../src/pairtest/constants.js";
 
 describe("TicketService", () => {
   const ticketService = new TicketService();
   let adultTicketRequest;
   let infantTicketRequest;
   let childTicketRequest;
+  let negativeTicketRequest;
 
   beforeEach(() => {
-    adultTicketRequest = new TicketTypeRequest(adultType, 7);
-    infantTicketRequest = new TicketTypeRequest(infantType, 2);
-    childTicketRequest = new TicketTypeRequest(childType, 3);
+    adultTicketRequest = new TicketTypeRequest(ADULT_TYPE, 7);
+    infantTicketRequest = new TicketTypeRequest(INFANT_TYPE, 2);
+    childTicketRequest = new TicketTypeRequest(CHILD_TYPE, 3);
+    negativeTicketRequest = new TicketTypeRequest(ADULT_TYPE, -2);
   });
 
   it("should throw an exception for invalid account id", () => {
@@ -57,5 +59,35 @@ describe("TicketService", () => {
     };
     expect(testMissingAdult2).toThrow(InvalidPurchaseException);
     expect(testMissingAdult2).toThrow("Ticket purchase restricted to adults only.");
+  });
+
+  it("should limit the maximum purchase to 20 tickets per request", () => {
+    const testExceededMaxPurchase = () => {
+      ticketService.purchaseTickets(
+        10,
+        adultTicketRequest,
+        childTicketRequest,
+        infantTicketRequest,
+        adultTicketRequest,
+        adultTicketRequest
+      );
+    };
+    expect(testExceededMaxPurchase).toThrow(InvalidPurchaseException);
+    expect(testExceededMaxPurchase).toThrow(
+      "The maximum number of tickets that can be purchased per request is limited to 20."
+    );
+  });
+
+  it("should only allow zero or more tickets per request", () => {
+    const testNegativeTicketCount = () => {
+      ticketService.purchaseTickets(
+        10,
+        negativeTicketRequest
+      );
+    };
+    expect(testNegativeTicketCount).toThrow(InvalidPurchaseException);
+    expect(testNegativeTicketCount).toThrow(
+      "The ticket count must be zero or a positive number."
+    );
   });
 });
