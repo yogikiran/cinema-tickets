@@ -1,6 +1,8 @@
 import TicketTypeRequest from './lib/TicketTypeRequest.js';
 import InvalidPurchaseException from './lib/InvalidPurchaseException.js';
-import { ADULT_TYPE, MAX_TICKET_COUNT } from "./constants.js";
+import SeatReservationService from "../thirdparty/seatbooking/SeatReservationService.js";
+import TicketPaymentService from "../thirdparty/paymentgateway/TicketPaymentService.js";
+import { ADULT_TYPE, INFANT_TYPE, CHILD_TYPE, ALLOCATE_SEAT, MAX_TICKET_COUNT, TICKET_PRICE } from "./constants.js";
 
 export default class TicketService {
   /**
@@ -23,8 +25,8 @@ export default class TicketService {
    */
   #includesAdult(...ticketTypeRequests) {
     let adultFound = false;
-    for (const ttr of ticketTypeRequests) {
-      if (ttr.getTicketType() == ADULT_TYPE) {
+    for (const ticketTypeRequest of ticketTypeRequests) {
+      if (ticketTypeRequest.getTicketType() == ADULT_TYPE) {
         adultFound = true;
         break;
       }
@@ -38,7 +40,6 @@ export default class TicketService {
 
   /**
    * Validates the ticket count for a ticket purchase request.
-   * @private
    * @param {...TicketTypeRequest} ticketTypeRequests - The ticket type requests to validate.
    * @throws {InvalidPurchaseException} If the ticket count is less than zero or exceeds the maximum limit.
    */
@@ -60,10 +61,56 @@ export default class TicketService {
     }
   }
 
+  /**
+   * Calculate the total amount to pay for the ticket purchase and call the ticket payment service.
+   * @param {number} accountId - The ID of the account making the ticket purchase.
+   * @param {...TicketTypeRequest} ticketTypeRequests - The ticket type requests specifying the number of tickets for each type.
+   */
+  #calculateTotalAmountAndPay(accountId, ...ticketTypeRequests) {
+    let totalAmount = 0;
+
+    for (const ticketTypeRequest of ticketTypeRequests) {
+      totalAmount += ticketTypeRequest.getNoOfTickets() * TICKET_PRICE[ticketTypeRequest.getTicketType()];
+    }
+    const ticketPaymentService = new TicketPaymentService();
+    ticketPaymentService.makePayment(accountId, totalAmount);
+    console.log(`Total amount paid for the tickets: ${totalAmount}`);
+  }
+
+  /**
+   * After the ticket payment is made, calculate the seats to reserve and call the seat reservation service.
+   * @param {string | number} accountId - The ID of the account making the ticket purchase.
+   * @param {...TicketTypeRequest} ticketTypeRequests - The ticket type requests specifying the number of tickets for each type.
+   */
+  #calculateSeatsAndReserve(accountId, ...ticketTypeRequests) {
+    let totalSeats = 0;
+    for (const ticketTypeRequest of ticketTypeRequests) {
+      totalSeats += ticketTypeRequest.getNoOfTickets() * ALLOCATE_SEAT[ticketTypeRequest.getTicketType()];
+    }
+    const seatReservationService = new SeatReservationService();
+    seatReservationService.reserveSeat(accountId, totalSeats);
+    console.log(`Total seats reserved: ${totalSeats}`);
+  }
+
+  /**
+   * Purchase tickets with the given account ID and ticket type requests.
+   * @param {number} accountId - The ID of the account making the ticket purchase.
+   * @param {...TicketTypeRequest} ticketTypeRequests - The ticket type requests specifying the number of tickets for each type.
+   */
   purchaseTickets(accountId, ...ticketTypeRequests) {
     this.#isValidAccountId(accountId);
     this.#includesAdult(...ticketTypeRequests);
     this.#isValidTicketCount(...ticketTypeRequests);
-    // throws InvalidPurchaseException
+    this.#calculateTotalAmountAndPay(accountId, ...ticketTypeRequests);
+    this.#calculateSeatsAndReserve(accountId, ...ticketTypeRequests);
+    console.log("Tickets purchased successfully");
   }
 }
+
+// Driver code to purchase tickets, also covered with unit-tests
+const requestTicket = new TicketService();
+const ticketTypeRequest = new TicketTypeRequest(ADULT_TYPE, 3);
+const ticketTypeRequest1 = new TicketTypeRequest(INFANT_TYPE, 2);
+const ticketTypeRequest2 = new TicketTypeRequest(CHILD_TYPE, 2);
+
+requestTicket.purchaseTickets(3, ticketTypeRequest, ticketTypeRequest1, ticketTypeRequest2);

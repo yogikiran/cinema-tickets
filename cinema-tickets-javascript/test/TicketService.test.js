@@ -1,6 +1,9 @@
+import { jest } from "@jest/globals";
 import TicketService from "../src/pairtest/TicketService.js";
 import TicketTypeRequest from "../src/pairtest/lib/TicketTypeRequest.js";
 import InvalidPurchaseException from "../src/pairtest/lib/InvalidPurchaseException.js";
+import TicketPaymentService from "../src/thirdparty/paymentgateway/TicketPaymentService.js";
+import SeatReservationService from "../src/thirdparty/seatbooking/SeatReservationService.js";
 import { ADULT_TYPE, CHILD_TYPE, INFANT_TYPE } from "../src/pairtest/constants.js";
 
 describe("TicketService", () => {
@@ -9,6 +12,7 @@ describe("TicketService", () => {
   let infantTicketRequest;
   let childTicketRequest;
   let negativeTicketRequest;
+  const logSpy = jest.spyOn(console, "log");
 
   beforeEach(() => {
     adultTicketRequest = new TicketTypeRequest(ADULT_TYPE, 7);
@@ -89,5 +93,41 @@ describe("TicketService", () => {
     expect(testNegativeTicketCount).toThrow(
       "The ticket count must be zero or a positive number."
     );
+  });
+
+  it("should compute total amount and call payment service", () => {
+    const makePaymentMock = jest
+      .spyOn(TicketPaymentService.prototype, "makePayment")
+      .mockImplementation(() => {
+        console.log("Mocked makePayment function");
+      });
+    ticketService.purchaseTickets(
+      10,
+      adultTicketRequest,
+      childTicketRequest,
+      infantTicketRequest
+    );
+    expect(makePaymentMock).toHaveBeenCalledWith(10, 170);
+    expect(logSpy).toHaveBeenCalledWith(
+      "Total amount paid for the tickets: 170"
+    );
+    expect(logSpy).toHaveBeenCalledWith("Tickets purchased successfully");
+  });
+
+  it("should compute total seats and call reserve seat", () => {
+    const reserveSeatMock  = jest
+      .spyOn(SeatReservationService.prototype, "reserveSeat")
+      .mockImplementation(() => {
+        console.log("Mocked reserveSeat function");
+      });
+    ticketService.purchaseTickets(
+      10,
+      adultTicketRequest,
+      childTicketRequest,
+      infantTicketRequest
+    );
+    expect(reserveSeatMock).toHaveBeenCalledWith(10, 10);
+    expect(logSpy).toHaveBeenCalledWith("Total seats reserved: 10");
+    expect(logSpy).toHaveBeenCalledWith("Tickets purchased successfully");
   });
 });
